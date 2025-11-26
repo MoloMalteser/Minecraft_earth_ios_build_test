@@ -22,25 +22,31 @@ jobs:
           buildName: ios-build
           allowDirtyBuild: true
 
+      - name: Create exportOptions.plist
+        run: |
+          cat > exportOptions.plist << 'EOF'
+          {
+            "method": "ad-hoc",
+            "compileBitcode": false,
+            "signingStyle": "manual",
+            "signingCertificate": ""
+          }
+          EOF
+
       - name: Archive Xcode project
         run: |
           cd build/iOS
-          xcodebuild -scheme Unity-iPhone -configuration Release -archivePath output.xcarchive archive
+          xcodebuild -scheme Unity-iPhone \
+            -configuration Release \
+            -archivePath output.xcarchive \
+            archive
 
       - name: Export unsigned IPA
         run: |
           cd build/iOS
           xcodebuild -exportArchive \
             -archivePath output.xcarchive \
-            -exportOptionsPlist <(cat <<EOF
-            {
-              "method": "ad-hoc",
-              "signingStyle": "manual",
-              "compileBitcode": false,
-              "signingCertificate": ""
-            }
-EOF
-            ) \
+            -exportOptionsPlist ../../exportOptions.plist \
             -exportPath ipa_output
 
       - name: Upload IPA
@@ -48,4 +54,3 @@ EOF
         with:
           name: unsigned-ipa
           path: build/iOS/ipa_output
-
