@@ -1,4 +1,4 @@
-name: Build Unsigned iOS IPA
+name: Build Unsigned iOS IPA with Unity
 
 on:
   push:
