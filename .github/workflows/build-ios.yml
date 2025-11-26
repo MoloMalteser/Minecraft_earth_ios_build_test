@@ -1,63 +1,51 @@
-name: Build Unsigned iOS IPA with Unity
+name: Build iOS
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build-ios:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Unity iOS Project
-        uses: game-ci/unity-builder@v3
+      - name: Unity - Builder
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          unityVersion: 6000.2.13f1
-          versioning: None
           targetPlatform: iOS
-          buildTarget: iOS
-          projectPath: .
+          buildName: ios-build
+          allowDirtyBuild: true
 
-      - name: Create ExportOptions.plist
+      - name: Archive Xcode project
         run: |
-          cat > ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key><string>development</string>
-              <key>signingStyle</key><string>manual</string>
-              <key>compileBitcode</key><false/>
-          </dict>
-          </plist>
-          EOF
+          cd build/iOS
+          xcodebuild -scheme Unity-iPhone -configuration Release -archivePath output.xcarchive archive
 
-      - name: Build Xcode Project (Unsigned)
+      - name: Export unsigned IPA
         run: |
-          cd Build/iOS
-          xcodebuild -scheme Unity-iPhone \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     -archivePath build/Unity-iPhone.xcarchive \
-                     archive
-
-      - name: Export Unsigned IPA
-        run: |
-          cd Build/iOS
+          cd build/iOS
           xcodebuild -exportArchive \
-                    -archivePath build/Unity-iPhone.xcarchive \
-                    -exportPath build/Unsigned \
-                    -exportOptionsPlist ../../ExportOptions.plist
+            -archivePath output.xcarchive \
+            -exportOptionsPlist <(cat <<EOF
+            {
+              "method": "ad-hoc",
+              "signingStyle": "manual",
+              "compileBitcode": false,
+              "signingCertificate": ""
+            }
+EOF
+            ) \
+            -exportPath ipa_output
 
-      - name: Upload Unsigned IPA
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Unsigned-IPA
-          path: Build/iOS/build/Unsigned/*.ipa
+          name: unsigned-ipa
+          path: build/iOS/ipa_output
+
