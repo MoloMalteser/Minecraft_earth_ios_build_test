@@ -16,7 +16,8 @@ jobs:
       - name: Build Unity iOS Project
         uses: game-ci/unity-builder@v3
         with:
-          unityVersion: 2023.1.0f1
+          unityVersion: 6000.2.13f1
+          versioning: None
           targetPlatform: iOS
           buildTarget: iOS
           projectPath: .
