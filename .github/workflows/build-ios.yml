@@ -1,0 +1,56 @@
+name: Build Unsigned iOS IPA
+
+on:
+push:
+branches:
+- main
+
+jobs:
+build-ios:
+runs-on: macos-latest
+
+steps:
+  - name: Checkout Repo
+    uses: actions/checkout@v3
+
+  - name: Set up Unity
+    uses: game-ci/unity-builder@v3
+    with:
+      unityVersion: 2023.1.0f1
+      targetPlatform: iOS
+
+  - name: Build Unity iOS Project
+    uses: game-ci/unity-builder@v3
+    with:
+      buildTarget: iOS
+      projectPath: .
+
+  - name: Build Unsigned IPA
+    run: |
+      cd Build/iOS
+      xcodebuild -scheme Unity-iPhone \
+                 -configuration Release \
+                 -sdk iphoneos \
+                 CODE_SIGN_IDENTITY="" \
+                 CODE_SIGNING_REQUIRED=NO \
+                 BUILD_DIR=$PWD/build \
+                 archive
+
+      xcodebuild -exportArchive \
+                 -archivePath $PWD/build/Unity-iPhone.xcarchive \
+                 -exportPath $PWD/build/Unsigned \
+                 -exportOptionsPlist <(echo '<?xml version="1.0" encoding="UTF-8"?>
+                 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                 <plist version="1.0">
+                 <dict>
+                     <key>compileBitcode</key><false/>
+                     <key>method</key><string>development</string>
+                     <key>signingStyle</key><string>manual</string>
+                 </dict>
+                 </plist>')
+
+  - name: Upload Unsigned IPA
+    uses: actions/upload-artifact@v3
+    with:
+      name: Unsigned-IPA
+      path: Build/iOS/build/Unsigned/*.ipa
